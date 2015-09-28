@@ -1,3 +1,4 @@
+#include <ctime>
 #include <vector>
 #include <cstdlib>
 #include <iostream>
@@ -7,7 +8,8 @@
 
 using namespace std;
 
-static vector<vector<int> > view;
+static int last[5]={0, 0, 0, 0, 0};
+static int stops[5];
 
 static int reels[5][63] = {
 	{9,7,12,5,7,3,4,11,9,7,12,6,7,4,11,10,4,3,11,12,7,5,10,9,7,5,9,10,8,9,7,4,9,10,11,5,10,3,9,10,3,9,4,8,7,5,11,9,12,6,3,5,7,9,11,10,6,7,3,5,10,8,4,},
@@ -40,6 +42,7 @@ static const SDL_Surface *symbolsSurface[] = {
 	NULL,
 	NULL,
 };
+static const SDL_Surface *reelsSurface[5] = {NULL, NULL, NULL, NULL, NULL};
 
 static SDL_Rect symbolsCoordinates[5][3] = {
 	{ { 298, 118, 0, 0 }, { 298, 266, 0, 0 }, { 298, 414, 0, 0 } },
@@ -49,14 +52,48 @@ static SDL_Rect symbolsCoordinates[5][3] = {
 	{ { 1003, 118,	0, 0 }, { 1003, 266, 0, 0 }, {1003, 414, 0, 0 } },
 };
 
+static unsigned long animationStart = 0;
+static unsigned long animationEnd = 0;
+static bool stopped[5] = {false, false, false, false, false};
 void draw() {
+    static double y0 = 0;
+    static double v0[5] = {-9.0, -9.2, -9.4, -9.6, -9.8};
+    static long t = 0;
+    static double a = 0.001;
+    static int y = 0;
+
 	SDL_BlitSurface((SDL_Surface*) backgroundSurface, NULL, canvas, &backgroundCoordinates);
 
-	for (int j = 0; j < 3; j++) {
-		for (int i = 0; i < 5; i++) {
-			SDL_BlitSurface((SDL_Surface*) symbolsSurface[view[i][j]], NULL, canvas, &symbolsCoordinates[i][j]);
-		}
-	}
+    for (int i = 0; i < 5 && animationStart!=animationEnd; i++) {
+        /*
+         * y = y0 + v0*t + 1/2*at^2
+         */
+        y0 = last[i] * 140;
+        t = (1000 * clock() / CLOCKS_PER_SEC) - animationStart;
+
+        y = (int)(y0 + v0[i]*t + a*t*t/2) % (63*140);
+        if(y < 0) {
+            y += 63*140;
+        }
+
+        /*
+         * Stop near to the target position.
+         */
+        if(i==0 && abs(y-stops[i]*140)<=140) {
+            last[i] = stops[i];
+            stopped[i] = true;
+        }else if(stopped[i-1] == true && stopped[i] == false && abs(y-stops[i]*140)<=70) {
+            last[i] = stops[i];
+            stopped[i] = true;
+        }
+
+        if(stopped[i] == true) {
+            y = stops[i] * 140;
+        }
+
+        const SDL_Rect frame = {0, y, 140, 3*140};
+        SDL_BlitSurface((SDL_Surface*) reelsSurface[i], &frame, canvas, &symbolsCoordinates[i][0]);
+    }
 
     SDL_UpdateWindowSurface(window);
 }
@@ -64,13 +101,20 @@ void draw() {
 int main() {
 	SDL_Init(SDL_INIT_EVERYTHING);
 
-	view.resize(5);
-	for (int i = 0; i < 5; i++) {
-		view[i].resize(3);
-		for (int j = 0; j < 3; j++) {
-			view[i][j] = 0;
-		}
-	}
+
+    /*
+     * Build long strips (two more images at the end).
+     */
+    for(int i=0, index; i<5; i++) {
+        reelsSurface[i] = IMG_Load("./Reel.png");
+
+        for(int j=0; j<(63+2); j++) {
+            index = reels[i][j%63];
+
+            SDL_Rect coordinates = {0, 140*j, 0, 0};
+            SDL_BlitSurface((SDL_Surface*) symbolsSurface[index], NULL, (SDL_Surface*)reelsSurface[i], &coordinates);
+        }
+    }
 
     //window = SDL_CreateWindow("Slot Reels Animation", 0, 0, 1280, 1024, SDL_WINDOW_FULLSCREEN_DESKTOP);
     window = SDL_CreateWindow("Slot Reels Animation", 0, 0, 1440, 900, 0);
@@ -94,11 +138,11 @@ int main() {
 
 				case SDLK_RETURN:
 					//startAnimation();
-					for (int i = 0, r; i < view.size(); i++) {
-						r = rand() % 63;
-						for (int j = view[i].size() - 1; j >= 0; j--) {
-							view[i][j] = reels[i][(r+j)%63];
-						}
+					memset(stopped, false, 5*sizeof(bool));
+                     animationStart = 1000 * clock() / CLOCKS_PER_SEC;
+
+					for (int i = 0, r; i < 5; i++) {
+						stops[i] = rand() % 63;
 					}
 					break;
 				}
@@ -108,7 +152,12 @@ int main() {
 		draw();
 	}
 
+
     SDL_DestroyWindow(window);
+
+    for(int i=0; i<5; i++) {
+        SDL_FreeSurface((SDL_Surface*)reelsSurface[i]);
+    }
 
 	SDL_Quit();
 

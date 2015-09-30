@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <iostream>
 
-#include <SDL.h>
-#include <SDL_image.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 using namespace std;
 
@@ -57,9 +57,9 @@ static unsigned long animationEnd = 0;
 static bool stopped[5] = {false, false, false, false, false};
 void draw() {
     static double y0 = 0;
-    static double v0[5] = {-9.0, -9.2, -9.4, -9.6, -9.8};
+    static double v0[5] = {-9.5, -9.6, -9.7, -9.8, -9.9};
     static long t = 0;
-    static double a = 0.001;
+    static double a = 0.0005;
     static int y = 0;
 
 	SDL_BlitSurface((SDL_Surface*) backgroundSurface, NULL, canvas, &backgroundCoordinates);
@@ -82,7 +82,7 @@ void draw() {
         if(i==0 && abs(y-stops[i]*140)<=140) {
             last[i] = stops[i];
             stopped[i] = true;
-        }else if(stopped[i-1] == true && stopped[i] == false && abs(y-stops[i]*140)<=70) {
+        }else if(stopped[i-1] == true && stopped[i] == false && abs(y-stops[i]*140)<=140) {
             last[i] = stops[i];
             stopped[i] = true;
         }

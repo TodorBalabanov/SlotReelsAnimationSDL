@@ -88,7 +88,10 @@ void draw() {
         }
 
         if(stopped[i] == true) {
+            SDL_SetSurfaceAlphaMod((SDL_Surface*) reelsSurface[i], 255);
             y = stops[i] * 140;
+        } else {
+            SDL_SetSurfaceAlphaMod((SDL_Surface*) reelsSurface[i], 191);
         }
 
         const SDL_Rect frame = {0, y, 140, 3*140};
